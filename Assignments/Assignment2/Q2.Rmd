@@ -1,0 +1,62 @@
+---
+title: "Question2"
+author: "Yufei Yin"
+output: pdf_document
+---
+
+# 2.
+
+## (a)
+
+```{r, warning=FALSE, message=FALSE}
+library(randomForest)
+set.seed(452)
+```
+
+
+```{r}
+###############################
+### Import and process data ###
+###############################
+
+### Import and clean the air quality data
+data("airquality")
+AQ.raw = na.omit(airquality[,1:4])
+
+### Construct new variables
+AQ = AQ.raw
+AQ$TWcp = with(AQ.raw, Temp * Wind)
+AQ$TWrat = with(AQ.raw, Temp / Wind)
+
+########################
+### Helper Functions ###
+########################
+
+### Create function to compute MSPEs
+get.MSPE = function(Y, Y.hat){
+  return(mean((Y - Y.hat)^2))
+}
+
+```
+
+```{r}
+fit.rf.2 = randomForest(Ozone ~ ., data = AQ, importance = T)
+
+# OOB error
+plot(fit.rf.2)
+get.MSPE(AQ$Ozone, predict(fit.rf.2))
+```
+\bigskip
+
+The previous OBB error is 282.3182, and the OBB error from RF analysis adding the two engineered features is 281.5672. It just improved a little bit.
+
+\bigskip
+
+## (b)
+
+```{r}
+importance(fit.rf.2)
+varImpPlot(fit.rf.2)
+```
+
+Both methods suggest that the ratio of temperature and wind speed is particular important, but the product of temperature and wind speed is not that important.

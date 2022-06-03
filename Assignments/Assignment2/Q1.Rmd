@@ -1,0 +1,77 @@
+---
+title: "Question1"
+author: "Yufei Yin"
+output: pdf_document
+---
+
+# 1.
+
+## (a).
+```{r, warning=FALSE, message=FALSE}
+library(randomForest)
+set.seed(452)
+```
+
+
+```{r}
+###############################
+### Import and process data ###
+###############################
+
+### Import and clean the air quality data
+data("airquality")
+AQ.raw = na.omit(airquality[,1:4])
+
+### Construct new variables
+AQ = AQ.raw
+AQ$TWcp = with(AQ.raw, Temp * Wind)
+AQ$TWrat = with(AQ.raw, Temp / Wind)
+
+########################
+### Helper Functions ###
+########################
+
+### Create function to compute MSPEs
+get.MSPE = function(Y, Y.hat){
+  return(mean((Y - Y.hat)^2))
+}
+
+
+```
+
+```{r}
+fit.rf.1 = randomForest(Ozone ~ Temp + Wind + Solar.R, data = AQ, importance = T)
+
+# OOB error
+plot(fit.rf.1)
+get.MSPE(AQ$Ozone, predict(fit.rf.1))
+```
+\bigskip
+
+## (b)
+
+```{r}
+importance(fit.rf.1)
+varImpPlot(fit.rf.1)
+```
+\bigskip
+
+Based on the result of mean decrease in RSS and mean decrease in accuracy, both methods suggest that variables Temp and Wind are more significant compared to Solar radiation. This is similar to the analysis we did in Lecture 2. We fit simple linear regression for these 3 variables respectively. The line for temperature provides a strong fit to the data. The line for wind speed provides a moderate-strong fit, and the line for solar radiation provides a weak-moderate fit.
+
+```{r, echo=FALSE}
+### Fit regression models
+fit.solar = lm(Ozone ~ Solar.R, data=AQ)
+fit.wind = lm(Ozone ~ Wind, data=AQ)
+fit.temp = lm(Ozone ~ Temp, data=AQ)
+
+par(mfrow = c(1,3))
+
+### Plot bi-variate scatterplots and add regression lines
+with(AQ, plot(Solar.R, Ozone, main = "Solar Radiation"))
+abline(fit.solar)
+with(AQ, plot(Wind, Ozone, main = "Wind Speed"))
+abline(fit.wind)
+with(AQ, plot(Temp, Ozone, main = "Temperature"))
+abline(fit.temp)
+```
+
