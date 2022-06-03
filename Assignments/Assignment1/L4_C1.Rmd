@@ -1,0 +1,19 @@
+---
+title: "Lecture 4: Concepts Q1"
+author: "Yufei Yin"
+output: pdf_document
+---
+
+# Concepts
+
+## 1. 
+
+## (a)
+
+For a fixed value of $X_2 = c$, $f(X) = \beta_0 + \beta_1X_1 + \beta_2c + \beta_3(\frac{1}{c})X_1$, so the "slope" of $X_1$ is $\beta_1 + \frac{1}{c}\beta_3$.
+
+\bigskip
+
+## (b)
+
+For a fixed value of $X_1 = d$, $f(X) = \beta_0 + \beta_1d + \beta_2X_2 + \beta_3d(\frac{1}{X_2})$, so the "slope" of $X_2$ is $\beta_2 - \frac{\beta_3d}{X_2(1+X_2)}$.

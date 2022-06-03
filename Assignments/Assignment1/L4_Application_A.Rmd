@@ -1,0 +1,237 @@
+---
+title: 'Lecture 4: Applications A'
+author: "Yufei Yin"
+output: pdf_document
+---
+
+# A. Feature Engineering
+
+## 1.
+
+```{r}
+data("airquality")
+AQ = na.omit(airquality[,1:4])
+AQ$TWcp = with(AQ, Temp * Wind)
+AQ$TWrat = with(AQ, Temp / Wind)
+```
+
+```{r}
+summary(AQ$TWcp)[c(1,4,6)]
+```
+
+\bigskip
+
+The minimum value for variable `TWcp` is 216.200.
+The mean value for variable `TWcp` is 756.527.
+The maximum value for variable `TWcp` is 1490.400.
+
+\bigskip
+
+```{r}
+summary(AQ$TWrat)[c(1,4,6)]
+```
+\bigskip
+
+The minimum value for variable `TWrat` is 3.034826.
+The mean value for variable `TWrat` is 9.419117.
+The maximum value for variable `TWrat` is 40.869565.
+
+\bigskip
+
+## 2.
+
+## (a)
+
+```{r}
+fit.cp = lm(Ozone ~ Temp + Wind + TWcp, data = AQ)
+summary(fit.cp)$coefficients[4,3]
+```
+
+The t-test result for variable `TWcp` is -3.986851.
+
+\bigskip
+
+```{r}
+fit.rat = lm(Ozone ~ Temp + Wind + TWrat, data = AQ)
+summary(fit.rat)$coefficients[4,3]
+```
+
+The t-test result for variable `TWrat` is 4.005288.
+
+\bigskip
+
+## (b)
+```{r}
+summary(fit.cp)
+summary(fit.rat)
+```
+\bigskip
+
+We compare the corresponding p-value to significant level $\alpha = 0.05$, both of the p-values are less than $\alpha$, so we reject the null hypothesis, therefore, both `TWcp` and `TWrat` are statistically significant.
+
+\bigskip
+
+## (c)
+
+The model is $f(X) = \beta_0 + \beta_1\;Temp + \beta_2\;Wind + \beta_3\;Temp\times Wind$. For a fixed value of variable `Wind`, the slope of `Temp` is $\beta_1 + Wind\;\beta_3$
+```{r}
+coef(fit.cp)
+min(AQ$Wind)
+4.000528 + 2.3 * -0.217276
+```
+
+When `Wind` is at its minimum value 2.3, the slope of the `Temp` effect is 3.500793.
+
+\bigskip
+```{r}
+max(AQ$Wind)
+4.000528 + 20.7 * -0.217276
+```
+
+When `Wind` is at its maximum value 20.7, the slope of the `Temp` effect is -0.4970852.
+
+\bigskip
+
+## 3.
+```{r}
+### Create function to compute MSPEs
+get.MSPE = function(Y, Y.hat){
+return(mean((Y - Y.hat)^2))
+}
+
+set.seed(4099183)
+
+n = nrow(AQ) # Sample size
+reorder = sample.int(n) # Randomized order
+
+### Identify which observations go in the training set (set == 1) or the
+### validation set (set == 2)
+prop.train = 0.75 # Proportion of observations to put in the training set
+set = ifelse(test = (reorder < prop.train * n),
+             yes = 1,
+             no = 2)
+
+### Construct training and validation sets
+data.train = AQ[set == 1, ]
+data.valid = AQ[set == 2, ]
+Y.valid = data.valid$Ozone
+
+### Fit both models to the training set
+fit.cp = lm(Ozone ~ . - TWrat, data = data.train)
+fit.rat = lm(Ozone ~ . - TWcp, data = data.train)
+
+### Get predictions
+pred.cp = predict(fit.cp, data.valid)
+pred.rat = predict(fit.rat, data.valid)
+
+### Get MSPEs
+MSPEs = rep(0, times=2)
+names(MSPEs) = c("CP", "Ratio")
+MSPEs["CP"] = get.MSPE(Y.valid, pred.cp)
+MSPEs["Ratio"] = get.MSPE(Y.valid, pred.rat)
+print(signif(MSPEs, 3))
+```
+\bigskip
+
+Because the MSPE from the validation data for cross product model (199) is less than the MSPE from the validation data for ratio model (218), the cross product model `fit.cp` wins this competition. 
+
+\bigskip
+
+## 4.
+
+## (a)
+```{r}
+### Create a function which gets predictions and calculates MSPEs
+MSPE.lm = function(fit, data.valid, Y.valid) {
+  pred = predict(fit, data.valid) # Predicted values on validation set
+  errs = Y.valid - pred # Validation set residuals
+  MSPE = mean(errs ^ 2)
+  return(MSPE)
+}
+
+K = 10 # Number of CV folds
+
+### Create function which constructs folds for CV
+### n is the number of observations, K is the number of folds
+get.folds = function(n, K) {
+folds = floor((sample.int(n)-1)*K/n) + 1
+return(folds)
+}
+
+M = 20 # Number of times to repeat CV
+
+### Create a 3D array to store CV errors by model, then iteration,
+### then fold. Set names of models.
+all.CV.MSPEs = array(0, dim = c(7, M, K))
+dimnames(all.CV.MSPEs)[[1]] = c("Solar.R", "Wind", "Temp", "All", "Second-Order", 
+                                "Cross product", "Ratio")
+
+for (j in 1:M) {
+  ### Get CV fold labels
+  folds = get.folds(n, K)
+  
+  ### Perform cross-validation
+  for (i in 1:K) {
+    ### Get training and validation sets
+    data.train = AQ[folds != i,]
+    data.valid = AQ[folds == i,]
+    
+    ### Fit regression models
+    fit.solar = lm(Ozone ~ Solar.R, data = data.train)
+    fit.wind = lm(Ozone ~ Wind, data = data.train)
+    fit.temp = lm(Ozone ~ Temp, data = data.train)
+    fit.all = lm(Ozone ~ Temp + Wind + Solar.R, data = data.train)
+    fit.2order = lm(Ozone ~ Temp*Wind + Temp*Solar.R + Wind*Solar.R 
+                    + I(Solar.R ^ 2) + I(Wind ^ 2) + I(Temp ^ 2), data = data.train)
+    fit.cp = lm(Ozone ~ Temp + Wind + TWcp, data = data.train)
+    fit.rat = lm(Ozone ~ Temp + Wind + TWrat, data = data.train)
+    
+    ### Calculate MSPEs
+    ### Be careful with order of indices!!!
+    all.CV.MSPEs["Solar.R", j, i] = MSPE.lm(fit.solar, data.valid, data.valid$Ozone)
+    all.CV.MSPEs["Wind", j, i] = MSPE.lm(fit.wind, data.valid, data.valid$Ozone)
+    all.CV.MSPEs["Temp", j, i] = MSPE.lm(fit.temp, data.valid, data.valid$Ozone)
+    all.CV.MSPEs["All", j, i] = MSPE.lm(fit.all, data.valid, data.valid$Ozone)
+    all.CV.MSPEs["Second-Order", j, i] = MSPE.lm(fit.2order, data.valid, data.valid$Ozone)
+    all.CV.MSPEs["Cross product", j, i] = MSPE.lm(fit.cp, data.valid, data.valid$Ozone) 
+    all.CV.MSPEs["Ratio", j, i] = MSPE.lm(fit.rat, data.valid, data.valid$Ozone)
+  }
+}
+```
+
+```{r}
+### Combine all MSPEs for each model into a single list
+### Note: as.numeric() converts its input into a 1D vector
+data.CV.MSPEs = apply(all.CV.MSPEs, 1, as.numeric)
+
+### Compute RMSPEs
+data.CV.RMSPEs = apply(data.CV.MSPEs, 1, function(W){
+best = min(W)
+output = W / best
+return(output)
+})
+data.CV.RMSPEs = t(data.CV.RMSPEs)
+
+### Create boxplot
+par(mar = c(6.5, 4.1, 4.1, 2.1))
+boxplot(data.CV.RMSPEs, main = "Boxplot of CV RMSPEs", ylim = c(1,3), las = 2)
+abline(h = 1, lty = 2)
+```
+
+\bigskip
+
+## (b)
+The second-order model is still the best most often, but there are many cases where it is beaten. Our 2 new models win the competition sometimes, the All model seems to have similar performance with the Ratio model, and they all usually have better performance than the model that fit single variable.
+
+
+
+
+
+
+
+
+
+
+
+
+

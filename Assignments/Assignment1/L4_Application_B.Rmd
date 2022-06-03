@@ -1,0 +1,60 @@
+---
+title: 'Lecture 4: Applications B'
+author: "Yufei Yin"
+output: pdf_document
+---
+
+# B. Categorical Explanatories
+
+## 1.
+
+```{r}
+# read data
+ins = read.csv("Insurance.csv")
+
+# convert categorical variables to factors
+ins$zone = as.factor(ins$zone)
+ins$make = as.factor(ins$make)
+
+# filter claims larger than 0
+ins = ins[ins$claims>0,]
+
+# 1797 observations
+dim(ins)
+```
+
+## (a)
+
+```{r}
+mod = lm(per ~ ., data = ins)
+summary(mod)
+```
+
+## i.
+
+```{r}
+coef(mod)
+length(coef(mod))
+```
+
+There are 19 parameters are estimated. 
+
+\bigskip
+
+## ii.
+
+```{r}
+cat(coef(mod)["(Intercept)"])
+```
+When `make` and `zone` are both at their first level, 1 the intercept of the regression is 11.862.
+
+\bigskip
+
+## iii.
+
+```{r}
+cat(coef(mod)["(Intercept)"] + coef(mod)["make9"] + coef(mod)["zone7"])
+```
+
+When `make` and `zone` are both at their last levels, 9 and 7 respectively the intercept of the regression is 10.45915. 
+

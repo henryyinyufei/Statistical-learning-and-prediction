@@ -1,0 +1,149 @@
+---
+title: 'Lecture 5: Application'
+author: "Yufei Yin"
+output: pdf_document
+---
+
+# Application
+
+## 1. 
+
+```{r}
+library(leaps)
+```
+
+
+```{r}
+data("airquality")
+AQ = na.omit(airquality[,1:4])
+AQ$TWcp = with(AQ, Temp * Wind)
+AQ$TWrat = with(AQ, Temp / Wind)
+```
+
+## (a)
+
+```{r}
+data.matrix = model.matrix(Ozone ~ ., data = AQ)
+
+### We also need the response variable 
+Y = AQ$Ozone
+
+fit.subsets = regsubsets(x = data.matrix, y = Y,
+  intercept = F)
+info.subsets = summary(fit.subsets)
+seq.subsets = info.subsets$which
+vars.seq.subsets.raw = apply(seq.subsets, 1, function(W){
+  vars.list = names(W)[W]
+  out = paste0(vars.list, collapse = ", ")
+})
+
+print(vars.seq.subsets.raw)
+```
+
+The output shows the variables in the best model of each size.
+
+## (b)
+```{r}
+info.subsets$bic
+```
+
+These are the BIC values of these best models in question(a), from variable size 1 to 6 respectively.
+
+## (c)
+```{r}
+which.min(info.subsets$bic)
+```
+
+The smallest BIC value gives the best model, so the best model have 4 variables. These 4 variables are (Intercept), Solar.R, Temp, and TWrat.
+
+\bigskip 
+
+## 2.
+
+```{r}
+n = nrow(AQ)
+
+fit.start = lm(Ozone ~ 1, data = AQ)
+fit.end = lm(Ozone ~ ., data = AQ)
+
+step.BIC = step(fit.start, list(upper = fit.end), 
+                direction = "both",
+                k = log(n),
+                trace = 0)
+summary(step.BIC)
+```
+
+hybrid stepwise algorithm selected variables temperature, solar radiation, and the ratio of temperature over wind speed (and also the intercept, but this shouldn’t have been included in the selection process).
+
+\bigskip
+
+## 3.
+
+```{r}
+### Create function to compute MSPEs
+get.MSPE = function(Y, Y.hat){
+  return(mean((Y - Y.hat)^2))
+}
+
+### Create function which constructs folds for CV
+### n is the number of observations, K is the number of folds
+get.folds = function(n, K) {
+  ### Get the appropriate number of fold labels
+  n.fold = ceiling(n / K) # Number of observations per fold (rounded up)
+  fold.ids.raw = rep(1:K, times = n.fold)
+  fold.ids = fold.ids.raw[1:n]
+  
+  ### Shuffle the fold labels
+  folds.rand = fold.ids[sample.int(n)]
+  
+  return(folds.rand)
+}
+```
+
+```{r}
+K = 10 #Number of folds
+
+set.seed(2928893)
+
+### Container for CV MSPEs
+CV.MSPEs = array(0, dim = c(1, K))
+rownames(CV.MSPEs) = "Step"
+colnames(CV.MSPEs) = 1:K
+
+### Get CV fold labels
+n = nrow(AQ)
+folds = get.folds(n, K)
+```
+
+```{r}
+### Perform cross-validation
+for (i in 1:K) {
+  ### Get training and validation sets
+  data.train = AQ[folds != i, ]
+  data.valid = AQ[folds == i, ]
+  Y.train = data.train$Ozone
+  Y.valid = data.valid$Ozone
+  
+  ############
+  ### Step ###
+  ############
+  fit.start = lm(Ozone ~ 1, data = data.train)
+  fit.end = lm(Ozone ~ ., data = data.train)
+  
+  fit.step = step(fit.start, list(upper = fit.end), trace = 0)
+  
+  pred.step = predict(fit.step, data.valid)
+  MSPE.step = get.MSPE(Y.valid, pred.step)
+  
+  CV.MSPEs["Step", i] = MSPE.step
+}
+
+### Get full-data MSPEs
+full.MSPEs = mean(CV.MSPEs)
+
+### Combine and print foldwise/full MSPEs
+MSPEs = cbind(CV.MSPEs, full.MSPEs)
+colnames(MSPEs) = c(1:K, "Full")
+print(signif(MSPEs, 3))
+```
+

@@ -1,0 +1,11 @@
+---
+title: 'Lecture 4: Concepts Q2'
+author: "Yufei Yin"
+output: pdf_document
+---
+
+# Concepts
+
+## 2.
+
+The model is $f(X) = \beta_0 + \beta_1X + \beta_2Z_2 + \beta_3XZ_2$.
